@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Pleum-Jednipit/bookings/pkg/config"
-	"github.com/Pleum-Jednipit/bookings/pkg/handlers"
-	"github.com/Pleum-Jednipit/bookings/pkg/render"
+	"github.com/Pleum-Jednipit/bookings/internal/config"
+	"github.com/Pleum-Jednipit/bookings/internal/handlers"
+	"github.com/Pleum-Jednipit/bookings/internal/render"
 
 	"github.com/alexedwards/scs/v2"
 )
