@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/gob"
 	"fmt"
 	"log"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/Pleum-Jednipit/bookings/internal/config"
 	"github.com/Pleum-Jednipit/bookings/internal/handlers"
+	"github.com/Pleum-Jednipit/bookings/internal/models"
 	"github.com/Pleum-Jednipit/bookings/internal/render"
 
 	"github.com/alexedwards/scs/v2"
@@ -20,6 +22,9 @@ var session *scs.SessionManager
 
 // main is the main function
 func main() {
+	// types to put in the session
+	gob.Register(models.Reservation{})
+
 	// change this to true when in production
 	app.InProduction = false
 
@@ -29,6 +34,7 @@ func main() {
 	session.Cookie.Persist = true
 	session.Cookie.SameSite = http.SameSiteLaxMode
 	session.Cookie.Secure = app.InProduction
+	
 
 	app.Session = session
 
