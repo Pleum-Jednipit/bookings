@@ -3,16 +3,15 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
 	"time"
 
-	"github.com/Pleum-Jednipit/bookings/helpers"
 	"github.com/Pleum-Jednipit/bookings/internal/config"
 	"github.com/Pleum-Jednipit/bookings/internal/driver"
 	"github.com/Pleum-Jednipit/bookings/internal/forms"
+	"github.com/Pleum-Jednipit/bookings/internal/helpers"
 	"github.com/Pleum-Jednipit/bookings/internal/models"
 	"github.com/Pleum-Jednipit/bookings/internal/render"
 	"github.com/Pleum-Jednipit/bookings/internal/repository"
@@ -33,7 +32,7 @@ type Repository struct {
 func NewRepo(a *config.AppConfig, db *driver.DB) *Repository {
 	return &Repository{
 		App: a,
-		DB: dbrepo.NewPostgreaRepo(db.SQL,a),
+		DB: dbrepo.NewPostgresRepo(db.SQL,a),
 	}
 }
 
@@ -121,7 +120,7 @@ func (m *Repository) PostReservation(w http.ResponseWriter, r *http.Request) {
 	form := forms.New(r.PostForm)
 
 	form.Required("first_name", "last_name", "email")
-	form.MinLength("first_name", 3, r)
+	form.MinLength("first_name", 3)
 	form.IsEmail("email")
 
 	if !form.Valid() {
@@ -188,7 +187,6 @@ func (m *Repository) PostAvailability(w http.ResponseWriter, r *http.Request) {
 	
 	start := r.Form.Get("start")
 	end := r.Form.Get("end")
-	
 
 	layout := "2006-01-02"
 
@@ -243,22 +241,30 @@ type jsonResponse struct {
 
 // AvailabilityJSON handles request for availability and sends JSON response
 func (m *Repository) AvailabilityJSON(w http.ResponseWriter, r *http.Request) {
-
-	sd := r.Form.Get("start")
-	ed := r.Form.Get("end")
+	err := r.ParseMultipartForm(32 << 20)
+    if err != nil {
+        log.Fatal(err)
+    }
+	
+	start := r.Form.Get("start")
+	end := r.Form.Get("end")
 
 	layout := "2006-01-02"
 
-	startDate,_ := time.Parse(layout, sd)
-	endDate,_:= time. Parse(layout, ed)
+	startDate,_ := time.Parse(layout, start)
+	endDate,_:= time.Parse(layout, end)
 
 	roomID,_ := strconv.Atoi(r.Form.Get("room_id"))
 
-	fmt.Printf("%s %s %d",startDate,endDate,roomID)
+	available, _ := m.DB.SearchAvailabilityByDatesByRoomId(startDate,endDate,roomID)
 
 	resp := jsonResponse{
-		OK:      true,
-		Message: "Available!",
+		OK: available,
+		Message: "",
+		RoomID: strconv.Itoa(roomID),
+		StartDate: start,
+		EndDate: end,
+		
 	}
 
 	out, err := json.MarshalIndent(resp, "", "     ")
@@ -270,41 +276,6 @@ func (m *Repository) AvailabilityJSON(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(out)
 }
-
-// func (m *Repository) AvailabilityJSON(w http.ResponseWriter, r *http.Request) {
-	
-// 	sd := r.Form.Get("start")
-// 	ed := r.Form.Get("end")
-
-// 	fmt.Printf("%s %s",sd,ed)
-
-// 	layout := "2006-01-02"
-
-// 	startDate,_ := time.Parse(layout, sd)
-// 	endDate,_ := time.Parse(layout, ed)
-
-// 	roomID,_ := strconv.Atoi(r.Form.Get("room_id"))
-
-// 	fmt.Printf("%s %s %d",startDate,endDate,roomID)
-
-// 	available, _ := m.DB.SearchAvailabilityByDatesByRoomId(startDate,endDate,roomID)
-	
-// 	resp := jsonResponse{
-// 		OK: available,
-// 		Message: "",
-// 		RoomID: strconv.Itoa(roomID),
-// 		StartDate: sd,
-// 		EndDate: ed,
-		
-// 	}
-
-// 	out, err := json.MarshalIndent(resp, "", "   ")
-// 	if err != nil {
-// 		helpers.ServerError(w,err)
-// 	}
-// 	w.Header().Set("Content-Type","application/json")
-// 	w.Write(out)
-// }
 
 // Contact renders the contact page
 func (m *Repository) Contact(w http.ResponseWriter, r *http.Request) {
@@ -374,7 +345,7 @@ func (m *Repository) BookRoom(w http.ResponseWriter, r *http.Request) {
 	startDate, _ := time.Parse(layout,sd)
 	endDate, _ := time.Parse(layout,ed)
 	
-	room, err := m.DB.GetRoomById(res.RoomID)
+	room, err := m.DB.GetRoomById(roomId)
 	if err != nil {
 		helpers.ServerError(w,err)
 	}
