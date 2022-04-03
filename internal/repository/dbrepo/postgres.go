@@ -2,6 +2,7 @@ package dbrepo
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/Pleum-Jednipit/bookings/internal/models"
@@ -76,6 +77,7 @@ func (m *postgresDBRepo) SearchAvailabilityByDatesByRoomId(start, end time.Time,
 
 	row := m.DB.QueryRowContext(ctx,query,roomId,start,end)
 	err := row.Scan(&numRows)
+	fmt.Printf("%s-%s",start,end)
 	if err != nil {
 		return false, err
 	}
