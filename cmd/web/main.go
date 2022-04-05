@@ -31,6 +31,9 @@ func main() {
 		log.Fatal(err)
 	}
 	defer db.SQL.Close()
+	defer close(app.MailChan)
+
+	listenForMail()
 
 	fmt.Println(fmt.Sprintf("Staring application on port %s", portNumber))
 
@@ -45,12 +48,15 @@ func main() {
 	}
 }
 
-func run() (* driver.DB,error) {
+func run() (*driver.DB, error) {
 	// what am I going to put in the session
 	gob.Register(models.Reservation{})
 	gob.Register(models.User{})
 	gob.Register(models.Room{})
 	gob.Register(models.Restriction{})
+
+	mailChan := make(chan models.MailData)
+	app.MailChan = mailChan
 
 	// change this to true when in production
 	app.InProduction = false
@@ -70,9 +76,7 @@ func run() (* driver.DB,error) {
 		log.Fatal("Cannot connect to db")
 	}
 
-	 
-
-	infoLog = log.New(os.Stdout, "INFO\t", log.Ldate| log.Ltime)
+	infoLog = log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
 	app.InfoLog = infoLog
 	errorLog = log.New(os.Stdout, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
 	app.ErrorLog = errorLog
@@ -80,16 +84,15 @@ func run() (* driver.DB,error) {
 	tc, err := render.CreateTemplateCache()
 	if err != nil {
 		log.Fatal("cannot create template cache")
-		return nil,err
+		return nil, err
 	}
 
 	app.TemplateCache = tc
 	app.UseCache = false
 
-	repo := handlers.NewRepo(&app,db)
+	repo := handlers.NewRepo(&app, db)
 	handlers.NewHandlers(repo)
 	render.NewRenderer(&app)
-	
+
 	return db, nil
 }
-
