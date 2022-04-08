@@ -24,15 +24,18 @@ func NewRenderer(a *config.AppConfig) {
 }
 
 func AddDefaultData(td *models.TemplateData, r *http.Request) *models.TemplateData {
-	td.Flash = app.Session.PopString(r.Context(),"flash")
-	td.Error = app.Session.PopString(r.Context(),"error")
-	td.Warning = app.Session.PopString(r.Context(),"warning")
+	td.Flash = app.Session.PopString(r.Context(), "flash")
+	td.Error = app.Session.PopString(r.Context(), "error")
+	td.Warning = app.Session.PopString(r.Context(), "warning")
 	td.CSRFToken = nosurf.Token(r)
+	if app.Session.Exists(r.Context(), "user_id") {
+		td.IsAuthenticated = 1
+	}
 	return td
 }
 
 // Template renders a template
-func Template(w http.ResponseWriter, r *http.Request,tmpl string, td *models.TemplateData) error {
+func Template(w http.ResponseWriter, r *http.Request, tmpl string, td *models.TemplateData) error {
 	var tc map[string]*template.Template
 
 	if app.UseCache {

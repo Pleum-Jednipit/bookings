@@ -11,6 +11,7 @@ import (
 	"github.com/Pleum-Jednipit/bookings/internal/config"
 	"github.com/Pleum-Jednipit/bookings/internal/driver"
 	"github.com/Pleum-Jednipit/bookings/internal/forms"
+	"github.com/Pleum-Jednipit/bookings/internal/helpers"
 	"github.com/Pleum-Jednipit/bookings/internal/models"
 	"github.com/Pleum-Jednipit/bookings/internal/render"
 	"github.com/Pleum-Jednipit/bookings/internal/repository"
@@ -35,12 +36,12 @@ func NewRepo(a *config.AppConfig, db *driver.DB) *Repository {
 }
 
 // NewTestRepo creates a new repository
-func NewTestRepo(a *config.AppConfig) *Repository {
-	return &Repository{
-		App: a,
-		DB:  dbrepo.NewTestingsRepo(a),
-	}
-}
+// func NewTestRepo(a *config.AppConfig) *Repository {
+// 	return &Repository{
+// 		App: a,
+// 		DB:  dbrepo.NewTestingsRepo(a),
+// 	}
+// }
 
 // NewHandlers sets the repository for the handlers
 func NewHandlers(r *Repository) {
@@ -180,6 +181,34 @@ func (m *Repository) PostReservation(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 		return
 	}
+
+	htmlMessage := fmt.Sprintf(`
+			<strong>Reservation Confirmation</strong><br>
+			This is your confirmation from %s to %s.`,
+		reservation.StartDate.Format("2006-01-02"), reservation.EndDate.Format("2006-01-02"))
+
+	msg := models.MailData{
+		To:      reservation.Email,
+		From:    "me@here.com",
+		Subject: "Reservation Confirmation",
+		Content: htmlMessage,
+	}
+
+	m.App.MailChan <- msg
+
+	htmlMessage = fmt.Sprintf(`
+			<strong>Reservation Notification</strong><br>
+			A reservation has been made for %s from %s to %s.`,
+		reservation.Room.RoomName, reservation.StartDate.Format("2006-01-02"), reservation.EndDate.Format("2006-01-02"))
+
+	msg = models.MailData{
+		To:      "me@here.com",
+		From:    "me@here.com",
+		Subject: "Reservation Notification",
+		Content: htmlMessage,
+	}
+
+	m.App.MailChan <- msg
 
 	m.App.Session.Put(r.Context(), "reservation", reservation)
 
@@ -416,4 +445,53 @@ func (m *Repository) BookRoom(w http.ResponseWriter, r *http.Request) {
 	m.App.Session.Put(r.Context(), "reservation", res)
 
 	http.Redirect(w, r, "/make-reservation", http.StatusSeeOther)
+}
+
+func (m *Repository) ShowLogin(w http.ResponseWriter, r *http.Request) {
+	render.Template(w, r, "login.page.tmpl", &models.TemplateData{
+		Form: forms.New(nil),
+	})
+}
+
+func (m *Repository) PostShowLogin(w http.ResponseWriter, r *http.Request) {
+	_ = m.App.Session.RenewToken(r.Context())
+	err := r.ParseForm()
+	if err != nil {
+		helpers.ServerError(w, err)
+	}
+	form := forms.New(r.PostForm)
+	form.Required("email", "password")
+	form.IsEmail("email")
+
+	if !form.Valid() {
+		render.Template(w, r, "login.page.tmpl", &models.TemplateData{
+			Form: form,
+		})
+		return
+	}
+
+	email := r.Form.Get("email")
+	password := r.Form.Get("password")
+
+	id, _, err := m.DB.Authenticate(email, password)
+	if err != nil {
+		m.App.Session.Put(r.Context(), "error", "Invalid login credentials")
+		http.Redirect(w, r, "/user/login", http.StatusSeeOther)
+	}
+
+	m.App.Session.Put(r.Context(), "user_id", id)
+	m.App.Session.Put(r.Context(), "flash", "Logged in successfully")
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+
+}
+
+// Logout logout
+func (m *Repository) Logout(w http.ResponseWriter, r *http.Request) {
+	_ = m.App.Session.Destroy(r.Context())
+	_ = m.App.Session.RenewToken(r.Context())
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+func (m *Repository) AdminDashboard(w http.ResponseWriter, r *http.Request) {
+	render.Template(w, r, "admin-dashboard.page.tmpl", &models.TemplateData{})
 }
