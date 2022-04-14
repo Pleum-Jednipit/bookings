@@ -1,3 +1,4 @@
+// Prompt is our JavaScript module for all alerts, notifications, and custom popup dialogs
 function Prompt() {
   let toast = function (c) {
     const { msg = "", icon = "success", position = "top-end" } = c;
@@ -62,13 +63,8 @@ function Prompt() {
           c.didOpen();
         }
       },
-      preConfirm: () => {
-        return [
-          document.getElementById("start").value,
-          document.getElementById("end").value,
-        ];
-      },
     });
+
     if (result) {
       if (result.dismiss !== Swal.DismissReason.cancel) {
         if (result.value !== "") {
@@ -76,7 +72,7 @@ function Prompt() {
             c.callback(result);
           }
         } else {
-          c.call(false);
+          c.callback(false);
         }
       } else {
         c.callback(false);
