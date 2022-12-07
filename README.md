@@ -1,4 +1,5 @@
 Bookings and Reservations
+
 This is the repository for my bookings and reservations project, which is part of the Udemy course Building modern web applications in Go.
 
 Dependencies:
